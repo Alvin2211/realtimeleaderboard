@@ -26,11 +26,12 @@ model Score {
   gameId    String
   score     Int
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
+  @@unique([userId, gameId])
   @@index([userId])
   @@index([gameId])
   @@index([score])
-  @@index([createdAt])
 }
