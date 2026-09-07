@@ -29,49 +29,54 @@ export async function getLeaderboardData() {
   }));
 }
 
-export async function getGlobalLeaderboard(req: Request, res: Response) {
+export async function getTopPlayers(req: Request, res: Response) {
   try {
     const leaderboard = await getLeaderboardData();
 
+    const topPlayers = leaderboard.slice(0, 10);
+
     return res.status(200).json({
-      leaderboard,
+      leaderboard: topPlayers,
     });
   } catch (error) {
-    console.error("Leaderboard error:", error);
+    console.error("Top players error:", error);
 
     return res.status(500).json({
-      message: "Failed to fetch leaderboard",
+      message: "Failed to fetch top players",
     });
   }
 }
 
-export async function getUserRank(userId: string) {
-  const leaderboard = await getLeaderboardData();
-
-  return leaderboard.find((user) => user.userId === userId);
-}
-
-export async function getUserLeaderboardRank(
+export async function getPlayerRank(
   req: Request,
   res: Response
 ) {
   try {
-    const  {userId}  = req.params;
+    const { userId } = req.params;
 
-    const user = await getUserRank(userId as string);
+    const leaderboard = await getLeaderboardData();
 
-    if (!user) {
+    const player = leaderboard.find(
+      (user) => user.userId === userId
+    );
+
+    if (!player) {
       return res.status(404).json({
         message: "User not found on leaderboard",
       });
     }
 
-    return res.status(200).json(user);
+    return res.status(200).json({
+      userId: player.userId,
+      username: player.username,
+      totalScore: player.totalScore,
+      rank: player.rank,
+    });
   } catch (error) {
-    console.error("User rank error:", error);
+    console.error("Player rank error:", error);
 
     return res.status(500).json({
-      message: "Failed to fetch user rank",
+      message: "Failed to fetch player rank",
     });
   }
 }

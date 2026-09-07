@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { getGlobalLeaderboard , getUserLeaderboardRank } from "../controllers/leaderboard.controller.js";
+import {
+  getTopPlayers,
+  getPlayerRank,
+} from "../controllers/leaderboard.controller.js";
 
 const router = Router();
 
-router.get("/", getGlobalLeaderboard);
-router.get("/:userId", getUserLeaderboardRank);
-
+router.get("/", getTopPlayers);
+router.get("/:userId", getPlayerRank);
 
 export default router;
