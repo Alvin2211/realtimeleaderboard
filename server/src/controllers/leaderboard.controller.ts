@@ -1,42 +1,50 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 
-export async function getLeaderboardData() {
-  const users = await prisma.user.findMany({
-    include: {
-      scores: true,
-    },
-  });
+import {
+  getTopPlayers as getRedisTopPlayers,
+  getPlayerRank as getRedisPlayerRank,
+  getPlayerScore as getRedisPlayerScore,
+} from "../services/redisLeaderboard.js";
 
-  const leaderboard = users.map((user) => {
-    const totalScore = user.scores.reduce(
-      (total, score) => total + score.score,
-      0
+export async function getTopPlayers(
+  req: Request,
+  res: Response
+) {
+  try {
+    const redisPlayers = await getRedisTopPlayers(10);
+
+    const userIds = redisPlayers.map(
+      (player) => player.value
     );
 
-    return {
-      userId: user.id,
-      username: user.username,
-      totalScore,
-    };
-  });
+    const users = await prisma.user.findMany({
+      where: {
+        id: {
+          in: userIds,
+        },
+      },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
 
-  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+    const userMap = new Map(
+      users.map((user) => [user.id, user.username])
+    );
 
-  return leaderboard.map((user, index) => ({
-    rank: index + 1,
-    ...user,
-  }));
-}
-
-export async function getTopPlayers(req: Request, res: Response) {
-  try {
-    const leaderboard = await getLeaderboardData();
-
-    const topPlayers = leaderboard.slice(0, 10);
+    const leaderboard = redisPlayers.map(
+      (player, index) => ({
+        rank: index + 1,
+        userId: player.value,
+        username: userMap.get(player.value),
+        totalScore: player.score,
+      })
+    );
 
     return res.status(200).json({
-      leaderboard: topPlayers,
+      leaderboard,
     });
   } catch (error) {
     console.error("Top players error:", error);
@@ -54,23 +62,37 @@ export async function getPlayerRank(
   try {
     const { userId } = req.params;
 
-    const leaderboard = await getLeaderboardData();
+    const rank = await getRedisPlayerRank(userId as string);
 
-    const player = leaderboard.find(
-      (user) => user.userId === userId
-    );
-
-    if (!player) {
+    if (rank === null) {
       return res.status(404).json({
         message: "User not found on leaderboard",
       });
     }
 
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const totalScore = await getRedisPlayerScore(userId as string);
+
     return res.status(200).json({
-      userId: player.userId,
-      username: player.username,
-      totalScore: player.totalScore,
-      rank: player.rank,
+      userId: user.id,
+      username: user.username,
+      totalScore: totalScore ?? 0,
+      rank,
     });
   } catch (error) {
     console.error("Player rank error:", error);

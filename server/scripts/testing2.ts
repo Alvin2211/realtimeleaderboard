@@ -3,7 +3,7 @@ import fs from "fs";
 
 const BASE_URL = "http://localhost:5000/api/leaderboard";
 
-const TOTAL_REQUESTS = 10_000;
+const TOTAL_REQUESTS = 10000;
 const CONCURRENCY = 100;
 
 const userIds: string[] = JSON.parse(

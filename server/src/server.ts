@@ -7,6 +7,7 @@ import scoreRoutes from "./routes/score.routes.js"
 import leaderboardRoutes from "./routes/leaderboard.routes.js";
 import { initializeWebSocket } from "./websocket.js";
 import { broadcast } from "./websocket.js";
+import { connectRedis } from "./lib/redis.js";
 
 
 const app = express();
@@ -35,10 +36,16 @@ const wss = new WebSocketServer({
 
 initializeWebSocket(wss);
 
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`WebSocket running on ws://localhost:${PORT}`);
-});
+
+async function startServer() {
+  await connectRedis();
+
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`WebSocket running on ws://localhost:${PORT}`);
+  });
+}
+startServer();
 
 app.get("/test/broadcast", (req, res) => {
   broadcast({

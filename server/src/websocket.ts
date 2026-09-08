@@ -1,7 +1,49 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { getLeaderboardData } from "./controllers/leaderboard.controller.js";
+
+import {
+  getTopPlayers,
+} from "./services/redisLeaderboard.js";
+
+import { prisma } from "./lib/prisma.js";
 
 export const clients = new Set<WebSocket>();
+
+const TOP_N = 10;
+
+export async function getTopPlayersForWebSocket() {
+  const redisPlayers = await getTopPlayers(TOP_N);
+
+  const userIds = redisPlayers.map(
+    (player) => player.value
+  );
+
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: {
+        in: userIds,
+      },
+    },
+    select: {
+      id: true,
+      username: true,
+    },
+  });
+
+  const userMap = new Map(
+    users.map((user) => [user.id, user.username])
+  );
+
+  return redisPlayers.map((player, index) => ({
+    rank: index + 1,
+    userId: player.value,
+    username: userMap.get(player.value),
+    totalScore: player.score,
+  }));
+}
 
 export function initializeWebSocket(wss: WebSocketServer) {
   wss.on("connection", async (socket) => {
@@ -9,7 +51,6 @@ export function initializeWebSocket(wss: WebSocketServer) {
 
     clients.add(socket);
 
-    // Tell client that connection was successful
     socket.send(
       JSON.stringify({
         type: "connected",
@@ -18,7 +59,7 @@ export function initializeWebSocket(wss: WebSocketServer) {
     );
 
     try {
-      const leaderboard = await getLeaderboardData();
+      const leaderboard = await getTopPlayersForWebSocket();
 
       socket.send(
         JSON.stringify({
@@ -27,7 +68,10 @@ export function initializeWebSocket(wss: WebSocketServer) {
         })
       );
     } catch (error) {
-      console.error("Failed to send leaderboard:", error);
+      console.error(
+        "Failed to fetch leaderboard:",
+        error
+      );
 
       socket.send(
         JSON.stringify({
@@ -49,6 +93,22 @@ export function initializeWebSocket(wss: WebSocketServer) {
       clients.delete(socket);
     });
   });
+}
+
+export function broadcastLeaderboard() {
+  getTopPlayersForWebSocket()
+    .then((leaderboard) => {
+      broadcast({
+        type: "leaderboardUpdate",
+        leaderboard,
+      });
+    })
+    .catch((error) => {
+      console.error(
+        "Failed to broadcast leaderboard:",
+        error
+      );
+    });
 }
 
 export function broadcast(data: unknown) {

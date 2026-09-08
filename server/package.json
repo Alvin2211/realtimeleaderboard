@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed":"tsx scripts/seed.ts",
-    "testing":"tsx scripts/testing.ts"
+    "testing":"tsx scripts/testing.ts",
+    "redisLeaderboard":"tsx scripts/buildredisLeaderboard.ts"
   },
   "keywords": [],
   "author": "",

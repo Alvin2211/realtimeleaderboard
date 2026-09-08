@@ -1,9 +1,18 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
-import { getLeaderboardData } from "./leaderboard.controller.js";
-import {broadcast} from "../websocket.js"
 
-export async function createScore(req: Request, res: Response) {
+import {
+  addPlayerToLeaderboard,
+} from "../services/redisLeaderboard.js";
+
+import {
+  broadcastLeaderboard,
+} from "../websocket.js";
+
+export async function createScore(
+  req: Request,
+  res: Response
+) {
   try {
     const { userId, gameId, score } = req.body;
 
@@ -13,7 +22,10 @@ export async function createScore(req: Request, res: Response) {
       });
     }
 
-    if (typeof score !== "number" || !Number.isInteger(score)) {
+    if (
+      typeof score !== "number" ||
+      !Number.isInteger(score)
+    ) {
       return res.status(400).json({
         message: "score must be an integer",
       });
@@ -74,21 +86,36 @@ export async function createScore(req: Request, res: Response) {
       });
     });
 
-    // Only broadcast if leaderboard actually changed
+    /*
+     * Only update Redis and broadcast if
+     * the player's best score actually changed.
+     */
     if (leaderboardChanged) {
-      const leaderboard = await getLeaderboardData();
-
-      broadcast({
-        type: "leaderboardUpdate",
-        leaderboard,
+      const totalScore = await prisma.score.aggregate({
+        where: {
+          userId,
+        },
+        _sum: {
+          score: true,
+        },
       });
+
+      const newTotalScore = totalScore._sum.score ?? 0;
+
+      // Update Redis Sorted Set
+      await addPlayerToLeaderboard(
+        userId,
+        newTotalScore
+      );
+
+      // Broadcast updated top N leaderboard
+      await broadcastLeaderboard();
     }
 
     return res.status(200).json({
       message: "Score processed",
       score: result,
     });
-
   } catch (error) {
     console.error("Score submission error:", error);
 
