@@ -9,7 +9,7 @@ This project was built primarily to explore performance bottlenecks, database vs
 ---
 ## Results of load test (kept at the starting coz of the reduced attention span of this generation):
 ### Observed latencies for Fetching leaderbaord and rank of user using raw Postgresql and using Redis:
-#### Rank Fetch Benchmark — 100K Requests.
+#### Rank Fetch Benchmark — 10K Requests.
 
 | Metric | Redis | PostgreSQL |
 |---|---:|---:|
@@ -24,7 +24,27 @@ This project was built primarily to explore performance bottlenecks, database vs
 | P95 Latency | 951.36 ms | 2226.79 ms |
 | P99 Latency | 1367.15 ms | 2575.72 ms |
 
-### Leaderboard Fetch Bnechmark
+### Leaderboard Fetch Bnechmark - 1K Requests
+ps: higher no of requests for the raw postgresql benchmark was making the test crash as it was using more cpu than allotted(im using supabase free trial so thats why).
+| Metric | Redis Top Players | Raw PostgreSQL |
+|---|---:|---:|
+| URL | `/api/leaderboard` | `/api/leaderboard/pg` |
+| Total Requests | 1,000 | 1,000 |
+| Concurrency | 50 | 50 |
+| Successful | 1,000 | 1,000 |
+| Failed | 0 | 0 |
+| Total Time (ms) | 17,236.60 | 406,695.44 |
+| Throughput (req/s) | 58.02 | 2.46 |
+| Min Latency (ms) | 710.21 | 4,618.71 |
+| Average Latency (ms) | 840.45 | 19,940.42 |
+| p50 Latency (ms) | 765.94 | 19,714.47 |
+| p95 Latency (ms) | 1,055.24 | 22,880.31 |
+| p99 Latency (ms) | 1,696.23 | 23,262.22 |
+| Max Latency (ms) | 1,900.54 | 23,414.82 |
+
+so this means that  **Redis** reduced p50 latency from **19.71s to 0.77s (~96% lower)** and increased throughput from **2.46 req/s to 58.02 req/s (~23.6× higher)** for Top-N player fetching.
+
+And for player rank fetching **Redis** reduced average latency from **1.72s to 0.54s (~68% lower)** and increased throughput from **58.00 req/s to 185.43 req/s (~3.2× higher)** compared to PostgreSQL.
 
 ---
 
