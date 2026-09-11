@@ -1,9 +1,8 @@
 import { performance } from "perf_hooks";
 
-const URL = "http://localhost:5000/api/leaderboard";
-
-const TOTAL_REQUESTS = 10000;
-const CONCURRENCY = 100;
+const URL = "http://localhost:5000/api/leaderboard/pg";
+const TOTAL_REQUESTS = 1000;
+const CONCURRENCY = 50;
 
 async function makeRequest(): Promise<number> {
   const start = performance.now();
@@ -29,29 +28,35 @@ async function testing() {
   console.log();
 
   const latencies: number[] = [];
-  let completed = 0;
+  const requestsStarted = { count: 0 };  
   let failed = 0;
+  let completed = 0;
+  const progressInterval = setInterval(() => { 
+    console.log( `Progress: ${completed}/${TOTAL_REQUESTS} requests completed` ); 
+  }, 1000);
 
   const startTime = performance.now();
 
   async function worker() {
-    while (true) {
-      const requestNumber = completed + failed;
+  while (true) {
+    const requestIndex = requestsStarted.count;
 
-      if (requestNumber >= TOTAL_REQUESTS) {
-        break;
-      }
+    if (requestIndex >= TOTAL_REQUESTS) {
+      return;
+    }
 
+    requestsStarted.count++;
+
+    try {
+      const latency = await makeRequest();
+      latencies.push(latency);
+    } catch {
+      failed++;
+    }finally{
       completed++;
-
-      try {
-        const latency = await makeRequest();
-        latencies.push(latency);
-      } catch (error) {
-        failed++;
-      }
     }
   }
+}
 
   const workers = Array.from(
     { length: CONCURRENCY },
@@ -59,6 +64,7 @@ async function testing() {
   );
 
   await Promise.all(workers);
+  clearInterval(progressInterval);
 
   const endTime = performance.now();
 

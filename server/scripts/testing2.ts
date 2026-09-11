@@ -50,9 +50,7 @@ async function worker(
 }
 
 async function runBenchmark() {
-  console.log("=================================");
-  console.log("       RANK BENCHMARK");
-  console.log("=================================");
+  console.log("Starting performance test...")
 
   console.log(`Total users:     ${userIds.length}`);
   console.log(`Total requests:  ${TOTAL_REQUESTS}`);

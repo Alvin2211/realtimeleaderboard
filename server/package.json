@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "seed":"tsx scripts/seed.ts",
     "testing":"tsx scripts/testing.ts",
+    "testing2":"tsx scripts/testing2.ts",
     "redisLeaderboard":"tsx scripts/buildredisLeaderboard.ts"
   },
   "keywords": [],
